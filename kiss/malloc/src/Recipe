@@ -1,0 +1,4 @@
+Library {
+    name: kissmalloc
+    source: malloc.c
+}

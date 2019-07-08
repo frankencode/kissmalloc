@@ -1,0 +1,5 @@
+Application {
+    name: kissbench_threads
+    use: kiss/malloc
+    source: *.c
+}

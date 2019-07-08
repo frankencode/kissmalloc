@@ -1,0 +1,3 @@
+Package {
+    include: [ bench, bench_libc, bench_threads, bench_threads_libc ]
+}

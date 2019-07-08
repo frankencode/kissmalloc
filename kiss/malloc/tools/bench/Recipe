@@ -1,0 +1,5 @@
+Application {
+    name: kissbench
+    use: kiss/malloc
+    source: *.c
+}
