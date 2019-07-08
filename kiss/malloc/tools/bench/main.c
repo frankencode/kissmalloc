@@ -1,4 +1,12 @@
-#include <cc/malloc>
+/*
+ * Copyright (C) 2019 Frank Mertens.
+ *
+ * Distribution and use is allowed under the terms of the zlib license
+ * (see kiss/LICENSE).
+ *
+ */
+
+#include <kiss/malloc>
 #include <stdio.h>
 #include <inttypes.h>
 #include <string.h>
