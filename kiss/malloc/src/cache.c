@@ -11,6 +11,11 @@ typedef struct {
     void *buffer[KISSMALLOC_PAGE_CACHE];
 } cache_t;
 
+static_assert(sizeof(cache_t) <= KISSMALLOC_PAGE_SIZE, "KISSMALLOC_PAGE_CACHE exceeds page size");
+
+static pthread_once_t cache_init_control;
+static pthread_key_t cache_key;
+
 inline static void cache_xchg(void **buffer, int i, int j)
 {
     void *h = buffer[i];
@@ -113,26 +118,28 @@ static void cache_reduce(cache_t *cache, int fill_max, size_t page_size)
     }
 }
 
-static void cache_cleanup(void *arg)
+static void cache_cleanup()
 {
-    cache_t *cache = (cache_t *)arg;
+    cache_t *cache = (cache_t *)pthread_getspecific(cache_key);
     cache_reduce(cache, 0, KISSMALLOC_PAGE_SIZE);
-    cache->fill = 0;
+    if (munmap(cache, KISSMALLOC_PAGE_SIZE) == -1) abort();
 }
 
-static void cache_init(cache_t *cache)
+static void cache_init()
 {
-    tss_t key;
-    if (tss_create(&key, cache_cleanup) != thrd_success) abort();
-    if (tss_set(key, cache) != thrd_success) abort();
+    if (pthread_key_create(&cache_key, cache_cleanup) != 0) abort();
+    cache_t *cache = (cache_t *)mmap(NULL, KISSMALLOC_PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE|MAP_NORESERVE|MAP_POPULATE, -1, 0);
+    if (cache == MAP_FAILED) abort();
+    pthread_setspecific(cache_key, cache);
 }
 
-static void cache_push(cache_t *cache, void *page, size_t page_size)
+static void cache_push(void *page, size_t page_size)
 {
+    pthread_once(&cache_init_control, cache_init);
+    cache_t *cache = (cache_t *)pthread_getspecific(cache_key);
+
     if (cache->fill == KISSMALLOC_PAGE_CACHE)
         cache_reduce(cache, KISSMALLOC_PAGE_CACHE >> 1, page_size);
-    else if (cache->fill == 0)
-        cache_init(cache);
 
     cache->buffer[cache->fill] = page;
     ++cache->fill;

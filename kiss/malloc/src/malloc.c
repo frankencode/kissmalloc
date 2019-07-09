@@ -34,7 +34,7 @@
 #include <stdlib.h> // abort, getenv
 #include <unistd.h> // sysconf
 #include <string.h> // memcpy
-#include <threads.h> // tss_create, tss_set
+#include <pthread.h>
 #include <errno.h>
 #include <stdint.h>
 #include <assert.h>
@@ -70,9 +70,8 @@ typedef struct {
 
 static_assert(sizeof(bucket_t) == 16, "The bucket header needs to be exactly 16 bytes");
 
-static _Thread_local bucket_t *thread_local_bucket = NULL;
-static _Thread_local cache_t thread_local_cache = { 0 };
-static _Thread_local tss_t bucket_key;
+static pthread_once_t bucket_init_control = PTHREAD_ONCE_INIT;
+static pthread_key_t bucket_key;
 
 inline static size_t round_up_pow2(const size_t x, const size_t g)
 {
@@ -80,7 +79,7 @@ inline static size_t round_up_pow2(const size_t x, const size_t g)
     return (x + m) & ~m;
 }
 
-static void on_thread_exit(void *arg)
+static void bucket_cleanup(void *arg)
 {
     bucket_t *bucket = (bucket_t *)arg;
 
@@ -95,9 +94,15 @@ static void on_thread_exit(void *arg)
     if (munmap(head, size) == -1) abort();
 }
 
+void bucket_init()
+{
+    if (pthread_key_create(&bucket_key, bucket_cleanup) != 0) abort();
+}
+
 void *malloc(size_t size)
 {
-    bucket_t *bucket = thread_local_bucket;
+    pthread_once(&bucket_init_control, bucket_init);
+    bucket_t *bucket = (bucket_t *)pthread_getspecific(bucket_key);
 
     if (size < KISSMALLOC_PAGE_HALF_SIZE)
     {
@@ -116,7 +121,7 @@ void *malloc(size_t size)
             prealloc_count = bucket->prealloc_count;
 
             if (!__sync_sub_and_fetch(&bucket->object_count, 1))
-                cache_push(&thread_local_cache, bucket, KISSMALLOC_PAGE_SIZE);
+                cache_push(bucket, KISSMALLOC_PAGE_SIZE);
         }
 
         void *page_start = NULL;
@@ -133,19 +138,12 @@ void *malloc(size_t size)
         }
         --prealloc_count;
 
-        const int first_time = !bucket;
-
         const size_t bucket_header_size = round_up_pow2(sizeof(bucket_t), KISSMALLOC_GRANULARITY);
         bucket = (bucket_t *)page_start;
         bucket->prealloc_count = prealloc_count;
         bucket->bytes_dirty = bucket_header_size + size;
         bucket->object_count = 2;
-        thread_local_bucket = bucket;
-
-        if (first_time) {
-            if (tss_create(&bucket_key, on_thread_exit) != thrd_success) abort();
-        }
-        if (tss_set(bucket_key, bucket) != thrd_success) abort();
+        pthread_setspecific(bucket_key, bucket);
 
         return (uint8_t *)page_start + bucket_header_size;
     }
@@ -169,7 +167,7 @@ void free(void *ptr)
         void *page_start = (uint8_t *)ptr - page_offset;
         bucket_t *bucket = (bucket_t *)page_start;
         if (!__sync_sub_and_fetch(&bucket->object_count, 1)) {
-            cache_push(&thread_local_cache, bucket, KISSMALLOC_PAGE_SIZE);
+            cache_push(bucket, KISSMALLOC_PAGE_SIZE);
         }
     }
     else if (ptr != NULL) {
