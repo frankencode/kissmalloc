@@ -6,10 +6,9 @@
  *
  */
 
-#if 0
 #define KISSMALLOC_TRACE_BUF_SIZE 64
 
-static char *trace_text(const char *text, char *eoi)
+inline static char *trace_text(const char *text, char *eoi)
 {
     while (*text) {
         *eoi = *text;
@@ -19,7 +18,7 @@ static char *trace_text(const char *text, char *eoi)
     return eoi;
 }
 
-static char *trace_size(size_t size, char *eoi)
+inline static char *trace_size(size_t size, char *eoi)
 {
     int skip_leading = 1;
     for (int i = 15; i >= 0; --i) {
@@ -27,7 +26,7 @@ static char *trace_size(size_t size, char *eoi)
         if (skip_leading && digit == 0) continue;
         skip_leading = 0;
         if (digit < 10) digit += '0';
-        else digit += -10 + 'A';
+        else digit += -10 + 'a';
         *eoi = digit;
         ++eoi;
     }
@@ -36,7 +35,7 @@ static char *trace_size(size_t size, char *eoi)
     return eoi;
 }
 
-static char *trace_size_dec(size_t size, char *eoi)
+inline static char *trace_size_dec(size_t size, char *eoi)
 {
     char buf[KISSMALLOC_TRACE_BUF_SIZE];
     int fill = 0;
@@ -62,7 +61,7 @@ inline static void trace_write(const char *message, char *eoi)
     write(2, message, eoi - message);
 }
 
-static void trace_malloc(size_t size)
+inline static void trace_malloc(size_t size)
 {
     char message[KISSMALLOC_TRACE_BUF_SIZE];
     char *eoi = message;
@@ -72,7 +71,7 @@ static void trace_malloc(size_t size)
     trace_write(message, eoi);
 }
 
-static void trace_free(void *ptr)
+inline static void trace_free(void *ptr)
 {
     char message[KISSMALLOC_TRACE_BUF_SIZE];
     char *eoi = message;
@@ -82,7 +81,7 @@ static void trace_free(void *ptr)
     trace_write(message, eoi);
 }
 
-static void trace_calloc(size_t number, size_t size)
+inline static void trace_calloc(size_t number, size_t size)
 {
     char message[KISSMALLOC_TRACE_BUF_SIZE];
     char *eoi = message;
@@ -94,7 +93,7 @@ static void trace_calloc(size_t number, size_t size)
     trace_write(message, eoi);
 }
 
-static void trace_realloc(void *ptr, size_t size)
+inline static void trace_realloc(void *ptr, size_t size)
 {
     char message[KISSMALLOC_TRACE_BUF_SIZE];
     char *eoi = message;
@@ -106,7 +105,7 @@ static void trace_realloc(void *ptr, size_t size)
     trace_write(message, eoi);
 }
 
-static void trace_posix_memalign(void **ptr, size_t alignment, size_t size)
+inline static void trace_posix_memalign(void **ptr, size_t alignment, size_t size)
 {
     char message[KISSMALLOC_TRACE_BUF_SIZE];
     char *eoi = message;
@@ -120,7 +119,7 @@ static void trace_posix_memalign(void **ptr, size_t alignment, size_t size)
     trace_write(message, eoi);
 }
 
-static void trace_aligned_alloc(size_t alignment, size_t size)
+inline static void trace_aligned_alloc(size_t alignment, size_t size)
 {
     char message[KISSMALLOC_TRACE_BUF_SIZE];
     char *eoi = message;
@@ -132,7 +131,7 @@ static void trace_aligned_alloc(size_t alignment, size_t size)
     trace_write(message, eoi);
 }
 
-static void trace_memalign(size_t alignment, size_t size)
+inline static void trace_memalign(size_t alignment, size_t size)
 {
     char message[KISSMALLOC_TRACE_BUF_SIZE];
     char *eoi = message;
@@ -144,7 +143,7 @@ static void trace_memalign(size_t alignment, size_t size)
     trace_write(message, eoi);
 }
 
-static void trace_valloc(size_t size)
+inline static void trace_valloc(size_t size)
 {
     char message[KISSMALLOC_TRACE_BUF_SIZE];
     char *eoi = message;
@@ -154,7 +153,7 @@ static void trace_valloc(size_t size)
     trace_write(message, eoi);
 }
 
-static void trace_pvalloc(size_t size)
+inline static void trace_pvalloc(size_t size)
 {
     char message[KISSMALLOC_TRACE_BUF_SIZE];
     char *eoi = message;
@@ -164,7 +163,7 @@ static void trace_pvalloc(size_t size)
     trace_write(message, eoi);
 }
 
-KISSMALLOC_UNUSED static void trace_inspect_size(const char *source, int line, const char *name, size_t size)
+inline static void trace_inspect_size(const char *source, int line, const char *name, size_t size)
 {
     char message[2 * KISSMALLOC_TRACE_BUF_SIZE];
     char *eoi = message;
@@ -179,7 +178,7 @@ KISSMALLOC_UNUSED static void trace_inspect_size(const char *source, int line, c
     trace_write(message, eoi);
 }
 
-KISSMALLOC_UNUSED static void *trace_inspect_ptr(const char *source, int line, const char *name, void *ptr)
+inline static void *trace_inspect_ptr(const char *source, int line, const char *name, void *ptr)
 {
     char message[2 * KISSMALLOC_TRACE_BUF_SIZE];
     char *eoi = message;
@@ -195,7 +194,7 @@ KISSMALLOC_UNUSED static void *trace_inspect_ptr(const char *source, int line, c
     return ptr;
 }
 
-KISSMALLOC_UNUSED static void trace_debug(const char *source, int line, const char *text)
+inline static void trace_debug(const char *source, int line, const char *text)
 {
     char message[2 * KISSMALLOC_TRACE_BUF_SIZE];
     char *eoi = message;
@@ -216,4 +215,3 @@ KISSMALLOC_UNUSED static void trace_debug(const char *source, int line, const ch
 
 #define KISSMALLOC_DEBUG(text) \
     trace_debug(__FILE__, __LINE__, text)
-#endif

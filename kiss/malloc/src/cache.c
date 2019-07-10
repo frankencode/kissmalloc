@@ -13,9 +13,6 @@ typedef struct {
 
 static_assert(sizeof(cache_t) <= KISSMALLOC_PAGE_SIZE, "KISSMALLOC_PAGE_CACHE exceeds page size");
 
-static pthread_once_t cache_init_control;
-static pthread_key_t cache_key;
-
 inline static void cache_xchg(void **buffer, int i, int j)
 {
     void *h = buffer[i];
@@ -96,21 +93,21 @@ inline static void *cache_pop(cache_t *cache)
     return page;
 }
 
-static void cache_reduce(cache_t *cache, int fill_max, size_t page_size)
+static void cache_reduce(cache_t *cache, int fill_max)
 {
     if (cache->fill <= fill_max) return;
 
     void *chunk = cache_pop(cache);
-    size_t size = page_size;
+    size_t size = KISSMALLOC_PAGE_SIZE;
     while (cache->fill > fill_max) {
         void *chunk2 = cache_pop(cache);
         if ((uint8_t *)chunk2 - (uint8_t *)chunk == (ssize_t)size) {
-            size += page_size;
+            size += KISSMALLOC_PAGE_SIZE;
         }
         else {
             if (munmap(chunk, size) == -1) abort();
             chunk = chunk2;
-            size = page_size;
+            size = KISSMALLOC_PAGE_SIZE;
         }
     }
     if (size > 0) {
@@ -118,28 +115,24 @@ static void cache_reduce(cache_t *cache, int fill_max, size_t page_size)
     }
 }
 
-static void cache_cleanup()
+static cache_t *cache_create()
 {
-    cache_t *cache = (cache_t *)pthread_getspecific(cache_key);
-    cache_reduce(cache, 0, KISSMALLOC_PAGE_SIZE);
+    cache_t *cache = (cache_t *)mmap(NULL, KISSMALLOC_PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE|MAP_NORESERVE|MAP_POPULATE, -1, 0);
+    if (cache == MAP_FAILED) abort();
+    // KISSMALLOC_INSPECT_PTR(cache);
+    return cache;
+}
+
+static void cache_cleanup(cache_t *cache)
+{
+    cache_reduce(cache, 0);
     if (munmap(cache, KISSMALLOC_PAGE_SIZE) == -1) abort();
 }
 
-static void cache_init()
+static void cache_push(cache_t *cache, void *page)
 {
-    if (pthread_key_create(&cache_key, cache_cleanup) != 0) abort();
-    cache_t *cache = (cache_t *)mmap(NULL, KISSMALLOC_PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE|MAP_NORESERVE|MAP_POPULATE, -1, 0);
-    if (cache == MAP_FAILED) abort();
-    pthread_setspecific(cache_key, cache);
-}
-
-static void cache_push(void *page, size_t page_size)
-{
-    pthread_once(&cache_init_control, cache_init);
-    cache_t *cache = (cache_t *)pthread_getspecific(cache_key);
-
     if (cache->fill == KISSMALLOC_PAGE_CACHE)
-        cache_reduce(cache, KISSMALLOC_PAGE_CACHE >> 1, page_size);
+        cache_reduce(cache, KISSMALLOC_PAGE_CACHE >> 1);
 
     cache->buffer[cache->fill] = page;
     ++cache->fill;

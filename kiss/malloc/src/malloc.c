@@ -39,6 +39,7 @@
 #include <stdint.h>
 #include <assert.h>
 
+// #include "trace.c"
 #include "cache.c"
 
 #ifndef MAP_ANONYMOUS
@@ -56,14 +57,16 @@
 #define KISSMALLOC_IS_POW2(x) (x > 0 && (x & (x - 1)) == 0)
 
 static_assert(KISSMALLOC_IS_POW2(KISSMALLOC_GRANULARITY), "KISSMALLOC_GRANULARITY needs to be a power of two");
+static_assert(KISSMALLOC_PAGE_SIZE <= 65536, "Page size above 64KiB is not supported");
 
 #pragma pack(push,1)
 
 typedef struct {
-    uint32_t prealloc_count; // please keep at the start of the structure to ensure alignment
-    uint32_t checksum;
-    uint32_t bytes_dirty;
-    uint32_t object_count;
+    uint16_t prealloc_count; // please keep at the start of the structure to ensure alignment
+    uint16_t checksum;
+    uint16_t bytes_dirty;
+    uint16_t object_count;
+    cache_t *cache;
 } bucket_t;
 
 #pragma pack(pop)
@@ -83,15 +86,19 @@ static void bucket_cleanup(void *arg)
 {
     bucket_t *bucket = (bucket_t *)arg;
 
-    void *head = bucket;
-    size_t size = (bucket->prealloc_count + 1) * KISSMALLOC_PAGE_SIZE;
+    if (bucket) {
+        cache_cleanup(bucket->cache);
 
-    if (__sync_sub_and_fetch(&bucket->object_count, 1)) {
-        head = ((uint8_t *)head) + KISSMALLOC_PAGE_SIZE;
-        size -= KISSMALLOC_PAGE_SIZE;
+        void *head = bucket;
+        size_t size = (bucket->prealloc_count + 1) * KISSMALLOC_PAGE_SIZE;
+
+        if (__sync_sub_and_fetch(&bucket->object_count, 1)) {
+            head = ((uint8_t *)head) + KISSMALLOC_PAGE_SIZE;
+            size -= KISSMALLOC_PAGE_SIZE;
+        }
+
+        if (munmap(head, size) == -1) abort();
     }
-
-    if (munmap(head, size) == -1) abort();
 }
 
 void bucket_init()
@@ -121,7 +128,7 @@ void *malloc(size_t size)
             prealloc_count = bucket->prealloc_count;
 
             if (!__sync_sub_and_fetch(&bucket->object_count, 1))
-                cache_push(bucket, KISSMALLOC_PAGE_SIZE);
+                cache_push(bucket->cache, bucket);
         }
 
         void *page_start = NULL;
@@ -138,11 +145,14 @@ void *malloc(size_t size)
         }
         --prealloc_count;
 
+        cache_t *cache = bucket ? bucket->cache : cache_create();
+
         const size_t bucket_header_size = round_up_pow2(sizeof(bucket_t), KISSMALLOC_GRANULARITY);
         bucket = (bucket_t *)page_start;
         bucket->prealloc_count = prealloc_count;
         bucket->bytes_dirty = bucket_header_size + size;
         bucket->object_count = 2;
+        bucket->cache = cache;
         pthread_setspecific(bucket_key, bucket);
 
         return (uint8_t *)page_start + bucket_header_size;
@@ -167,7 +177,17 @@ void free(void *ptr)
         void *page_start = (uint8_t *)ptr - page_offset;
         bucket_t *bucket = (bucket_t *)page_start;
         if (!__sync_sub_and_fetch(&bucket->object_count, 1)) {
-            cache_push(bucket, KISSMALLOC_PAGE_SIZE);
+            pthread_once(&bucket_init_control, bucket_init);
+            bucket_t *my_bucket = (bucket_t *)pthread_getspecific(bucket_key);
+            if (!my_bucket) {
+                my_bucket = (bucket_t *)mmap(NULL, KISSMALLOC_PREALLOC_SIZE, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE|MAP_NORESERVE|MAP_POPULATE, -1, 0);
+                if (!my_bucket) abort();
+                my_bucket->bytes_dirty = round_up_pow2(sizeof(bucket_t), KISSMALLOC_GRANULARITY);
+                my_bucket->object_count = 1;
+                my_bucket->cache = cache_create();
+                pthread_setspecific(bucket_key, my_bucket);
+            }
+            cache_push(my_bucket->cache, bucket);
         }
     }
     else if (ptr != NULL) {
