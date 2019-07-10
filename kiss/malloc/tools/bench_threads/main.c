@@ -11,7 +11,7 @@
 #include <inttypes.h>
 #include <stdarg.h>
 #include <unistd.h>
-#include <threads.h>
+#include <pthread.h>
 
 static void thread_printf(const char *format, ...)
 {
@@ -45,24 +45,24 @@ typedef struct {
     void **object;
 } thread_state_t;
 
-static int thread_run_malloc(void *arg)
+static void *thread_run_malloc(void *arg)
 {
     thread_state_t *state = (thread_state_t *)arg;
 
     for (int k = 0; k < state->object_count; ++k)
         state->object[k] = malloc(state->object_size[k]);
 
-    return 0;
+    return NULL;
 }
 
-static int thread_run_free(void *arg)
+static void *thread_run_free(void *arg)
 {
     thread_state_t *state = (thread_state_t *)arg;
 
     for (int k = 0; k < state->object_count; ++k)
         free(state->object[k]);
 
-    return 0;
+    return NULL;
 }
 
 int main(int argc, char **argv)
@@ -100,15 +100,17 @@ int main(int argc, char **argv)
     }
 
     {
-        thrd_t thread[thread_count];
+        pthread_t thread[thread_count];
 
         double t = time_get();
 
-        for (int i = 0; i < thread_count; ++i)
-            thrd_create(&thread[i], &thread_run_malloc, &thread_state[i]);
+        for (int i = 0; i < thread_count; ++i) {
+            if (pthread_create(&thread[i], NULL,  &thread_run_malloc, &thread_state[i]) != 0)
+                thread_printf("failed to create thread %d\n", 1);
+        }
 
         for (int i = 0; i < thread_count; ++i) {
-            if (thrd_join(thread[i], NULL) != thrd_success)
+            if (pthread_join(thread[i], NULL) != 0)
                 thread_printf("failed to wait for thread %d\n", i);
         }
 
@@ -122,15 +124,17 @@ int main(int argc, char **argv)
     }
 
     {
-        thrd_t thread[thread_count];
+        pthread_t thread[thread_count];
 
         double t = time_get();
 
-        for (int i = 0; i < thread_count; ++i)
-            thrd_create(&thread[i], &thread_run_free, &thread_state[i]);
+        for (int i = 0; i < thread_count; ++i) {
+            if (pthread_create(&thread[i], NULL, &thread_run_free, &thread_state[i]) != 0)
+                thread_printf("failed to create thread %d\n", 1);
+        }
 
         for (int i = 0; i < thread_count; ++i) {
-            if (thrd_join(thread[i], NULL) != thrd_success)
+            if (pthread_join(thread[i], NULL) != 0)
                 thread_printf("failed to wait for thread %d\n", i);
         }
 
