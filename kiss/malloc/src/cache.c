@@ -119,7 +119,6 @@ static cache_t *cache_create()
 {
     cache_t *cache = (cache_t *)mmap(NULL, KISSMALLOC_PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE|MAP_NORESERVE|MAP_POPULATE, -1, 0);
     if (cache == MAP_FAILED) abort();
-    // KISSMALLOC_INSPECT_PTR(cache);
     return cache;
 }
 
