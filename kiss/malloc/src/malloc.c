@@ -62,8 +62,7 @@ static_assert(KISSMALLOC_PAGE_SIZE <= 65536, "Page size above 64KiB is not suppo
 #pragma pack(push,1)
 
 typedef struct {
-    uint16_t prealloc_count; // please keep at the start of the structure to ensure alignment
-    uint16_t checksum;
+    uint32_t prealloc_count; // please keep at the start of the structure to ensure alignment
     uint16_t bytes_dirty;
     uint16_t object_count;
     cache_t *cache;
