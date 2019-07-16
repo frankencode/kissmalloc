@@ -6,7 +6,7 @@
  *
  */
 
-#include <kiss/malloc.h>
+#include <kissmalloc.h>
 #include <stdio.h>
 #include <inttypes.h>
 #include <string.h>

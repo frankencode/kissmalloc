@@ -6,7 +6,7 @@
  *
  */
 
-#include <kiss/malloc.h>
+#include <kissmalloc.h>
 
 /// System memory granularity, e.g. XMMS movdqa requires 16
 #define KISSMALLOC_GRANULARITY (2 * sizeof(size_t) < __alignof__ (long double) ? __alignof__ (long double) : 2 * sizeof(size_t))
