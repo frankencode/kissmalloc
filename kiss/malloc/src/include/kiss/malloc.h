@@ -8,22 +8,28 @@
 
 #pragma once
 
+#ifdef KISSMALLOC_NAME_PREFIX
+#define KISSMALLOC_NAME(function) KISSMALLOC_NAME_PREFIX ## function
+#else
+#define KISSMALLOC_NAME(function) function
+#endif
+
 #include <sys/types.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void *malloc(size_t size);
-void free(void *ptr);
-void *calloc(size_t number, size_t size);
-void *realloc(void *ptr, size_t size);
-int posix_memalign(void **ptr, size_t alignment, size_t size);
+void *KISSMALLOC_NAME(malloc)(size_t size);
+void KISSMALLOC_NAME(free)(void *ptr);
+void *KISSMALLOC_NAME(calloc)(size_t number, size_t size);
+void *KISSMALLOC_NAME(realloc)(void *ptr, size_t size);
+int KISSMALLOC_NAME(posix_memalign)(void **ptr, size_t alignment, size_t size);
 
-void *aligned_alloc(size_t alignment, size_t size);
-void *memalign(size_t alignment, size_t size);
-void *valloc(size_t size);
-void *pvalloc(size_t size);
+void *KISSMALLOC_NAME(aligned_alloc)(size_t alignment, size_t size);
+void *KISSMALLOC_NAME(memalign)(size_t alignment, size_t size);
+void *KISSMALLOC_NAME(valloc)(size_t size);
+void *KISSMALLOC_NAME(pvalloc)(size_t size);
 
 #ifdef __cplusplus
 } // extern "C"

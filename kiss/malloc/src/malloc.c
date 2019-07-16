@@ -105,7 +105,7 @@ void bucket_init()
     if (pthread_key_create(&bucket_key, bucket_cleanup) != 0) abort();
 }
 
-void *malloc(size_t size)
+void *KISSMALLOC_NAME(malloc)(size_t size)
 {
     pthread_once(&bucket_init_control, bucket_init);
     bucket_t *bucket = (bucket_t *)pthread_getspecific(bucket_key);
@@ -168,7 +168,7 @@ void *malloc(size_t size)
     return (uint8_t *)head + KISSMALLOC_PAGE_SIZE;
 }
 
-void free(void *ptr)
+void KISSMALLOC_NAME(free)(void *ptr)
 {
     const size_t page_offset = (size_t)(((uint8_t *)ptr - (uint8_t *)NULL) & (KISSMALLOC_PAGE_SIZE - 1));
 
@@ -195,12 +195,12 @@ void free(void *ptr)
     }
 }
 
-void *calloc(size_t number, size_t size)
+void *KISSMALLOC_NAME(calloc)(size_t number, size_t size)
 {
     return malloc(number * size);
 }
 
-void *realloc(void *ptr, size_t size)
+void *KISSMALLOC_NAME(realloc)(void *ptr, size_t size)
 {
     if (ptr == NULL) return malloc(size);
 
@@ -235,7 +235,7 @@ void *realloc(void *ptr, size_t size)
     return new_ptr;
 }
 
-int posix_memalign(void **ptr, size_t alignment, size_t size)
+int KISSMALLOC_NAME(posix_memalign)(void **ptr, size_t alignment, size_t size)
 {
     if (size == 0) {
         *ptr = NULL;
@@ -284,26 +284,26 @@ int posix_memalign(void **ptr, size_t alignment, size_t size)
     return 0;
 }
 
-void *aligned_alloc(size_t alignment, size_t size)
+void *KISSMALLOC_NAME(aligned_alloc)(size_t alignment, size_t size)
 {
     void *ptr = NULL;
     posix_memalign(&ptr, alignment, size);
     return ptr;
 }
 
-void *memalign(size_t alignment, size_t size)
+void *KISSMALLOC_NAME(memalign)(size_t alignment, size_t size)
 {
     void *ptr = NULL;
     posix_memalign(&ptr, alignment, size);
     return ptr;
 }
 
-void *valloc(size_t size)
+void *KISSMALLOC_NAME(valloc)(size_t size)
 {
     return malloc(round_up_pow2(size, KISSMALLOC_PAGE_SIZE));
 }
 
-void *pvalloc(size_t size)
+void *KISSMALLOC_NAME(pvalloc)(size_t size)
 {
     return malloc(round_up_pow2(size, KISSMALLOC_PAGE_SIZE));
 }
