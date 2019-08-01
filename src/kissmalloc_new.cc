@@ -1,10 +1,10 @@
-#include <kissmalloc.h>
+#include "kissmalloc.h"
 
 #include <new>
 
-#ifdef NDEBUG
-#ifdef KISSMALLOC_VALGRIND
-#undef KISSMALLOC_VALGRIND
+#ifndef KISSMALLOC_VALGRIND
+#ifndef NDEBUG
+#define KISSMALLOC_VALGRIND
 #endif
 #endif
 

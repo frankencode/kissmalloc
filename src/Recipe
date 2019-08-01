@@ -1,5 +1,8 @@
 Library {
     name: kissmalloc
-    source: [ malloc.c, new.cc ]
-    // compile-flags: -DKISSMALLOC_VALGRIND -DKISSMALLOC_NAME_PREFIX=KISSMALLOC_
+    source: [ kissmalloc.c, kissmalloc_new.cc ]
+    Dependency {
+        compile-flags: -DKISSMALLOC_OVERLOAD_LIBC -DKISSMALLOC_OVERLOAD_
+        cascade: true
+    }
 }
