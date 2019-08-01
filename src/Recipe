@@ -1,4 +1,5 @@
 Library {
     name: kissmalloc
     source: [ malloc.c, new.cc ]
+    // compile-flags: -DKISSMALLOC_VALGRIND -DKISSMALLOC_NAME_PREFIX=KISSMALLOC_
 }
