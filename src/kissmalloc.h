@@ -8,6 +8,9 @@
 
 #pragma once
 
+/// Uncomment the following line to enable overloading of the standard libc memory allocation functions
+// #define KISSMALLOC_OVERLOAD_LIBC
+
 #ifdef KISSMALLOC_OVERLOAD_LIBC
 #ifdef KISSMALLOC_NAME_PREFIX
 #undef KISSMALLOC_NAME_PREFIX
