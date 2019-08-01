@@ -2,7 +2,7 @@
  * Copyright (C) 2019 Frank Mertens.
  *
  * Distribution and use is allowed under the terms of the zlib license
- * (see kiss/LICENSE).
+ * (see kissmalloc/LICENSE).
  *
  */
 
@@ -23,7 +23,7 @@ static void thread_printf(const char *format, ...)
     if (buf_fill > 0) write(0, buf, buf_fill);
 }
 
-inline static int random_get(const int a, const int b)
+static int random_get(const int a, const int b)
 {
     const unsigned m = (1u << 31) - 1;
     static unsigned x = 7;
@@ -73,7 +73,7 @@ int main(int argc, char **argv)
     const int size_max = 130;
 
     printf(
-        "kiss threads malloc()/free() benchmark\n"
+        "kissmalloc threads malloc()/free() benchmark\n"
         "------------------------------\n"
         "\n"
         "n = %d (number of objects)\n"

@@ -1,4 +1,4 @@
 Library {
     name: kissmalloc
-    source: malloc.c
+    source: [ malloc.c, new.cc ]
 }
