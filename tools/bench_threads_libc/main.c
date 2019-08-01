@@ -74,7 +74,7 @@ int main(int argc, char **argv)
 
     printf(
         "libc threads malloc()/free() benchmark\n"
-        "------------------------------\n"
+        "--------------------------------------\n"
         "\n"
         "n = %d (number of objects)\n"
         "m = %d (number of threads)\n"

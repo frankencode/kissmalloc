@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 
     printf(
         "kissmalloc malloc()/free() benchmark\n"
-        "------------------------------\n"
+        "------------------------------------\n"
         "\n"
         "n = %d (number of objects)\n"
         "\n",
