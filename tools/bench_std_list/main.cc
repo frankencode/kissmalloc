@@ -54,20 +54,22 @@ int main(int argc, char *argv[])
             test_list->push_back(object[i]);
 
         auto dt = time_get() - t;
-        cout << "time spent on appening objects to the end of the list: " << dt * 1000 << " ms" << endl;
+        cout << "average latency of std::list<int>::push_back(): " << dt * 1e9 / object_count << " ns" << endl;
     }
 
     {
         auto t = time_get();
 
-        delete test_list;
+        for (int i = 0; i < object_count; ++i)
+            test_list->pop_back();
 
         auto dt = time_get() - t;
-        cout << "time spent on freeing the entire list                : " << dt * 1000 << " ms" << endl;
+        cout << "average latency of std::list<int>::pop_back() : " << dt * 1e9 / object_count << " ns" << endl;
     }
 
     cout << endl << endl;
 
+    delete test_list;
     delete[] object;
 
     return 0;

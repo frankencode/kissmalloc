@@ -2,7 +2,7 @@ Library {
     name: kissmalloc
     source: [ kissmalloc.c, kissmalloc_new.cc ]
     Dependency {
-        compile-flags: [ -DKISSMALLOC_OVERLOAD_LIBC, -std=c++11 ]
+        compile-flags: -DKISSMALLOC_OVERLOAD_LIBC
         cascade: true
     }
 }
