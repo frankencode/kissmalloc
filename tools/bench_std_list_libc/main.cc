@@ -68,5 +68,7 @@ int main(int argc, char *argv[])
 
     cout << endl << endl;
 
+    delete[] object;
+
     return 0;
 }

@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
     typedef list<int> int_list;
     int_list *test_list = new int_list;
 
-   cout <<
+    cout <<
         "kissmalloc std::list benchmark\n"
         "------------------------------\n"
         "\n"
@@ -67,6 +67,8 @@ int main(int argc, char *argv[])
     }
 
     cout << endl << endl;
+
+    delete[] object;
 
     return 0;
 }
