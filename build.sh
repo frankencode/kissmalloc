@@ -35,3 +35,4 @@ wait
 g++ -o kissbench_std_list -pthread .modules-CC779790-$MACHINE-tools_bench_std_list/main.o -L. -lkissmalloc -Wl,--enable-new-dtags,-rpath='$ORIGIN',-rpath='$ORIGIN'/../lib,-rpath-link=$PWD
 g++ -c -o .modules-C8A5C153-$MACHINE-tools_bench_std_list_libc/main.o -DNDEBUG -O2 -fPIC -Wall -pthread -pipe -std=c++11 -D_FILE_OFFSET_BITS=64 -DCCBUILD_BUNDLE_VERSION=0.1.0 $SOURCE/tools/bench_std_list_libc/main.cc &
 wait
+g++ -o kissbench_std_list_libc -pthread .modules-C8A5C153-$MACHINE-tools_bench_std_list_libc/main.o -L. -Wl,--enable-new-dtags,-rpath='$ORIGIN',-rpath='$ORIGIN'/../lib,-rpath-link=$PWD
