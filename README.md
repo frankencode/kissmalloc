@@ -72,7 +72,7 @@ You can build out-of-source, too. The target directory will contain the library 
 |--------------|------------|-------------------|-----------------|
 | 406 ns       | 214 ns     | 141 ns            | 67 ns           |
 
- * kissmalloc is on average **2.98** times faster than glibc.
+ * *kissmalloc* is on average **2.98** times faster than glibc.
 
 #### Multi-threaded malloc, free
 
@@ -85,7 +85,7 @@ You can build out-of-source, too. The target directory will contain the library 
 |--------------|------------|-------------------|-----------------|
 | 2129 ns      | 501 ns     | 250 ns            | 157 ns          |
 
- * kissmalloc is on average **6.46** times faster that glibc.
+ * *kissmalloc* is on average **6.46** times faster that glibc.
 
 #### Single-threaded C++ std::list&lt;int&gt;
 
