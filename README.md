@@ -42,7 +42,7 @@ These functions behave semantically exactly the same as the standard libc librar
 
 ## How to use in C++
 
-*kissmalloc* also contains overloads for the C++ **new** and **delete** operators. You do not need to modify the kissmalloc.h! Just drop the files 'src/kissmalloc.c', 'src/kissmalloc.h' and 'src/kissmalloc_new.cc' into your C++ project. Alternatively you can also build and link kissmalloc as a library.
+*kissmalloc* also contains overloads for the C++ **new** and **delete** operators. You do not need to modify the kissmalloc.h! Just drop the files `src/kissmalloc.c`, `src/kissmalloc.h` and `src/kissmalloc_new.cc` into your C++ project. Alternatively you can also build and link kissmalloc as a library.
 
 ## Building the library
 
