@@ -1,6 +1,6 @@
 # kissmalloc
 
-*kissmalloc* is a simple and safe, yet extraordinary fast memory allocator. It utilizes purely mmap(2) sytem calls to manage memory. It single-threaded applications it has shown to out-perform glibc's memory allocator by a factor of 2. In embedded multi-core systems it truely shines (see performance stats below).
+*kissmalloc* is a simple and safe, yet extraordinary fast memory allocator. It utilizes purely mmap(2) sytem calls to manage memory. It single-threaded applications it has shown to out-perform glibc's memory allocator by a factor of at least 2. In embedded multi-core systems it truely shines (see performance stats below).
 
 ## Design
 
