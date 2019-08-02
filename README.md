@@ -12,7 +12,7 @@ Each thread's allocation is guaranteed to be placed on distinct memory pages and
 
 *kissmalloc* is build to run on any modern POSIX compatible operating system. For performance reasons it utilizes some gcc compiler intrinsics (e.g. `__builtin_ctz`). Building the library in debug mode in addition requires valgrind headers.
 
-*__Let me know if you run into problems!__*
+*Let me know if you run into problems!*
 
 ## How to use
 
