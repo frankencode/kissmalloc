@@ -58,7 +58,7 @@ You can build out-of-source, too. The target directory will contain the library 
 
 ## Benchmark Example: Quad Core Allwinner A64 64-bit Cortex-A53
 
- * glibc 2.23 compared to kissmalloc 0.1
+ * glibc 2.23 and musl 1.1.9 compared to kissmalloc 0.1
  * test system: Teres-I with Ubuntu 16.04
  * test programs: kissbench, kissbench_libc, etc.
 
@@ -68,11 +68,12 @@ You can build out-of-source, too. The target directory will contain the library 
  * minimum object size: 12 bytes
  * maximum object size: 130 bytes
 
-| glibc malloc | glibc free | kissmalloc malloc | kissmalloc free |
-|--------------|------------|-------------------|-----------------|
-| 406 ns       | 214 ns     | 141 ns            | 67 ns           |
+| glibc malloc | glibc free | musl malloc | musl free | kissmalloc malloc | kissmalloc free |
+|--------------|------------|-------------|-----------|-------------------|-----------------|
+| 406 ns       | 214 ns     | 488 ns      | 370 ns    | 141 ns            | 67 ns           |
 
  * *kissmalloc* is on average **2.98** times faster than glibc.
+ * *kissmalloc* is on average **4.13** times faster than musl.
 
 #### Multi-threaded malloc, free
 
@@ -81,11 +82,12 @@ You can build out-of-source, too. The target directory will contain the library 
   * maximum object size: 130 bytes
   * number of threads: 4
 
-| glibc malloc | glibc free | kissmalloc malloc | kissmalloc free |
-|--------------|------------|-------------------|-----------------|
-| 2129 ns      | 501 ns     | 250 ns            | 157 ns          |
+| glibc malloc | glibc free | musl malloc | musl free | kissmalloc malloc | kissmalloc free |
+|--------------|------------|-------------|-----------|-------------------|-----------------|
+| 2129 ns      | 501 ns     | 1369 ns     | 986 ns    | 250 ns            | 157 ns          |
 
  * *kissmalloc* is on average **6.46** times faster that glibc.
+ * *kissmalloc* is on average **5.79** times faster than musl.
 
 #### Single-threaded C++ std::list&lt;int&gt;
 
