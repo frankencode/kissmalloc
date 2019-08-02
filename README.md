@@ -97,4 +97,4 @@ You can build out-of-source, too. The target directory will contain the library 
 |-------------------|------------------|----------------------|---------------------|
 | 292 ns            | 122 ns           | 167 ns               | 88 ns               |
 
- * std::list&lt;int&gt; is on average **1.62** times faster when linking against kissmalloc.
+ * std::list&lt;int&gt; is on average **1.62** times faster when linking against *kissmalloc*.
