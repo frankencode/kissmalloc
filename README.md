@@ -10,7 +10,9 @@ Each thread's allocation is guaranteed to be placed on distinct memory pages and
 
 ## Dependencies
 
-*kissmalloc* is build to run on any modern POSIX compatible operating system. For performance reasons it utilizes some gcc compiler intrinsics (e.g. `__builtin_ctz`). Let me know if you run into problems!
+*kissmalloc* is build to run on any modern POSIX compatible operating system. For performance reasons it utilizes some gcc compiler intrinsics (e.g. `__builtin_ctz`). Building the library in debug mode in addition requires valgrind headers.
+
+*__Let me know if you run into problems!__*
 
 ## How to use
 
@@ -31,7 +33,7 @@ void *kissmemalign(size_t alignment, size_t size);
 void *kissvalloc(size_t size);
 void *kisspvalloc(size_t size);
 ```
-The functions behave semantically exactly the same as the standard libc library functions without the "kiss" in their name:
+These functions behave semantically exactly the same as the standard libc library functions without the "kiss" in their name:
  * https://en.cppreference.com/w/c/memory/malloc
  * https://en.cppreference.com/w/c/memory/free
  * https://en.cppreference.com/w/c/memory/calloc
