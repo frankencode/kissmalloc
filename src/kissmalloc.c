@@ -386,7 +386,7 @@ int KISSMALLOC_NAME(posix_memalign)(void **ptr, size_t alignment, size_t size)
     }
 
     if (alignment + size < KISSMALLOC_PAGE_HALF_SIZE) {
-        uint8_t *ptr_byte = malloc(alignment + size);
+        uint8_t *ptr_byte = (void *)malloc(alignment + size);
         if (ptr_byte != NULL) {
             size_t r = (size_t)(ptr_byte - (uint8_t *)NULL) & (alignment - 1);
             if (r > 0) ptr_byte += alignment - r;
