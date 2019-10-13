@@ -29,7 +29,7 @@ static double time_get()
 
 int main(int argc, char **argv)
 {
-    const int object_count = 10000000;
+    const int object_count = 50000000;
 
     const int size_min = 12;
     const int size_max = 130;
@@ -52,8 +52,10 @@ int main(int argc, char **argv)
     {
         double t = time_get();
 
-        for (int i = 0; i < object_count; ++i)
+        for (int i = 0; i < object_count; ++i) {
             object[i] = malloc(object_size[i]);
+            // memset(object[i], 0, object_size[i]);
+        }
 
         t = time_get() - t;
 

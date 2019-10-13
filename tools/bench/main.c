@@ -29,7 +29,7 @@ static double time_get()
 
 int main(int argc, char **argv)
 {
-    const int object_count = 10000000;
+    const int object_count = 50000000;
 
     const int size_min = 12;
     const int size_max = 130;

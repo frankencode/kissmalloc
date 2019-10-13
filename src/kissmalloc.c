@@ -153,7 +153,7 @@ static void cache_reduce(cache_t *cache, int fill_max)
 
 static cache_t *cache_create()
 {
-    cache_t *cache = (cache_t *)mmap(NULL, KISSMALLOC_PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE|MAP_NORESERVE|MAP_POPULATE, -1, 0);
+    cache_t *cache = (cache_t *)mmap(NULL, KISSMALLOC_PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE|MAP_POPULATE, -1, 0);
     if (cache == MAP_FAILED) abort();
     return cache;
 }
@@ -251,7 +251,7 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
         if (bucket)
         {
             const size_t bytes_free = (size_t)KISSMALLOC_PAGE_SIZE - bucket->bytes_dirty;
-            if (size <= bytes_free && 0 < bytes_free) {
+            if (0 < bytes_free && size <= bytes_free) {
                 void *data = (uint8_t *)bucket + bucket->bytes_dirty;
                 bucket->bytes_dirty += size;
                 ++bucket->object_count; // this is atomic on all relevant processors!
@@ -268,7 +268,7 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
             page_start = (uint8_t *)bucket + KISSMALLOC_PAGE_SIZE;
         }
         else {
-            page_start = mmap(NULL, KISSMALLOC_PREALLOC_SIZE, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE|MAP_NORESERVE|MAP_POPULATE, -1, 0);
+            page_start = mmap(NULL, KISSMALLOC_PREALLOC_SIZE, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
             if (page_start == MAP_FAILED) {
                 errno = ENOMEM;
                 return NULL;
@@ -292,7 +292,7 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
 
     size = round_up_pow2(size, KISSMALLOC_PAGE_SIZE) + KISSMALLOC_PAGE_SIZE;
 
-    void *head = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE|MAP_NORESERVE|MAP_POPULATE, -1, 0);
+    void *head = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
     if (head == MAP_FAILED) {
         errno = ENOMEM;
         return NULL;
@@ -312,7 +312,7 @@ void KISSMALLOC_NAME(free)(void *ptr)
             pthread_once(&bucket_init_control, bucket_init);
             bucket_t *my_bucket = (bucket_t *)pthread_getspecific(bucket_key);
             if (!my_bucket) {
-                my_bucket = (bucket_t *)mmap(NULL, KISSMALLOC_PREALLOC_SIZE, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE|MAP_NORESERVE|MAP_POPULATE, -1, 0);
+                my_bucket = (bucket_t *)mmap(NULL, KISSMALLOC_PREALLOC_SIZE, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
                 if (!my_bucket) abort();
                 my_bucket->bytes_dirty = round_up_pow2(sizeof(bucket_t), KISSMALLOC_GRANULARITY);
                 my_bucket->object_count = 1;
@@ -398,7 +398,7 @@ int KISSMALLOC_NAME(posix_memalign)(void **ptr, size_t alignment, size_t size)
 
     size += alignment + KISSMALLOC_PAGE_SIZE;
 
-    void *head = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE|MAP_NORESERVE|MAP_POPULATE, -1, 0);
+    void *head = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
     if (head == MAP_FAILED) return ENOMEM;
 
     while (

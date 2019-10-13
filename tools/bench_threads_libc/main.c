@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <string.h>
 
 static void thread_printf(const char *format, ...)
 {
@@ -49,8 +50,10 @@ static void *thread_run_malloc(void *arg)
 {
     thread_state_t *state = (thread_state_t *)arg;
 
-    for (int k = 0; k < state->object_count; ++k)
+    for (int k = 0; k < state->object_count; ++k) {
         state->object[k] = malloc(state->object_size[k]);
+        // memset(state->object[k], k, state->object_size[k]);
+    }
 
     return NULL;
 }
@@ -118,6 +121,7 @@ int main(int argc, char **argv)
 
         printf("malloc() burst speed:\n");
         printf("  t = %f s (test duration)\n", t);
+        printf("  n/t = %f MHz (average number of allocations per second, all threads combined)\n", thread_count * object_count / t / 1e6);
         printf("  n/t = %f MHz (average number of allocations per second)\n", object_count / t / 1e6);
         printf("  t/n = %f ns (average latency of an allocation)\n", t / object_count * 1e9);
         printf("\n");
@@ -142,6 +146,7 @@ int main(int argc, char **argv)
 
         printf("free() burst speed:\n");
         printf("  t = %f s (test duration)\n", t);
+        printf("  n/t = %f MHz (average number of deallocations per second, all threads combined)\n", thread_count * object_count / t / 1e6);
         printf("  n/t = %f MHz (average number of deallocations per second)\n", object_count / t / 1e6);
         printf("  t/n = %f ns (average latency of an deallocation)\n", t / object_count * 1e9);
         printf("\n");
