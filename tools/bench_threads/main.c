@@ -67,7 +67,7 @@ static void *thread_run_free(void *arg)
 
 int main(int argc, char **argv)
 {
-    const int thread_count = 4;
+    const int thread_count = 8;
     const int object_count = 10000000;
     const int size_min = 12;
     const int size_max = 130;

@@ -12,17 +12,9 @@
 // #define KISSMALLOC_OVERLOAD_LIBC
 
 #ifdef KISSMALLOC_OVERLOAD_LIBC
-#ifdef KISSMALLOC_NAME_PREFIX
-#undef KISSMALLOC_NAME_PREFIX
-#endif
-#else
-#define KISSMALLOC_NAME_PREFIX kiss
-#endif
-
-#ifdef KISSMALLOC_NAME_PREFIX
-#define KISSMALLOC_NAME(function) KISSMALLOC_NAME_PREFIX ## function
-#else
 #define KISSMALLOC_NAME(function) function
+#else
+#define KISSMALLOC_NAME(function) kiss ## function
 #endif
 
 #include <sys/types.h>
