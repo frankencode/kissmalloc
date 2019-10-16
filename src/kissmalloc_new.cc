@@ -39,7 +39,7 @@ void *operator new(std::size_t size)
     VALGRIND_MALLOCLIKE_BLOCK(data, size, KISSMALLOC_REDZONE_SIZE, /*is_zeroed=*/true);
     #endif
     #endif
-    if (!data) throw std::bad_alloc{};
+    if (!data && size) throw std::bad_alloc{};
     return data;
 }
 
@@ -55,7 +55,7 @@ void *operator new[](std::size_t size)
     VALGRIND_MALLOCLIKE_BLOCK(data, size, KISSMALLOC_REDZONE_SIZE, /*is_zeroed=*/true);
     #endif
     #endif
-    if (!data) throw std::bad_alloc{};
+    if (!data && size) throw std::bad_alloc{};
     return data;
 }
 

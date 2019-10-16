@@ -13,7 +13,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /// Number of pages to preallocate
-#define KISSMALLOC_PAGE_PREALLOC 64
+#define KISSMALLOC_PAGE_PREALLOC 128
 
 /// Number of freed pages to cache at maximum (should be N * KISSMALLOC_PAGE_PREALLOC - 1)
 #define KISSMALLOC_PAGE_CACHE 255
@@ -251,7 +251,8 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
         if (bucket)
         {
             const size_t bytes_free = (size_t)KISSMALLOC_PAGE_SIZE - bucket->bytes_dirty;
-            if (0 < bytes_free && size <= bytes_free) {
+            if (size <= bytes_free) {
+                if (size == 0) return NULL;
                 void *data = (uint8_t *)bucket + bucket->bytes_dirty;
                 bucket->bytes_dirty += size;
                 ++bucket->object_count; // this is atomic on all relevant processors!
