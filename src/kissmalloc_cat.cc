@@ -488,7 +488,7 @@ void *KISSMALLOC_NAME(pvalloc)(size_t size)
 #define KISSMALLOC_EXCEPT throw(std::bad_alloc)
 #define KISSMALLOC_THROW throw std::bad_alloc()
 #else // since C++17
-#define KISSMALLOC_NOEXCEPT noexecpt
+#define KISSMALLOC_NOEXCEPT noexcept
 #define KISSMALLOC_EXCEPT
 #define KISSMALLOC_THROW throw std::bad_alloc{}
 #endif // until/since C++17
