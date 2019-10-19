@@ -34,9 +34,6 @@
 /// KISSMALLOC CONFIGURATION
 ////////////////////////////////////////////////////////////////////////////////
 
-/// System memory granularity, e.g. XMMS movdqa requires 16
-#define KISSMALLOC_GRANULARITY (2 * sizeof(size_t) < __alignof__ (long double) ? __alignof__ (long double) : 2 * sizeof(size_t))
-
 /// Number of pages to preallocate
 #define KISSMALLOC_PAGE_PREALLOC 128
 
@@ -45,6 +42,9 @@
 
 /// Size of a memory page on the target system
 #define KISSMALLOC_PAGE_SIZE 4096
+
+/// System memory granularity, e.g. XMMS movdqa requires 16
+#define KISSMALLOC_GRANULARITY 16
 
 ////////////////////////////////////////////////////////////////////////////////
 /// INTERNALS...
