@@ -194,15 +194,17 @@ static_assert(KISSMALLOC_PAGE_SIZE <= 65536, "Page size above 64KiB is not suppo
 #pragma pack(push,1)
 
 typedef struct {
-    uint32_t prealloc_count; // please keep at the start of the structure to ensure alignment
-    uint16_t bytes_dirty;
-    uint16_t object_count;
+    uint32_t object_count; // please keep at the beginning of the structure for alignment reason
+    uint16_t bytes_free;
+    uint8_t prealloc_count;
+    uint8_t page_size_ld;
     cache_t *cache;
 } bucket_t;
 
 #pragma pack(pop)
 
 static_assert(sizeof(bucket_t) <= KISSMALLOC_GRANULARITY, "The bucket_t header must not exceed KISSMALLOC_GRANULARITY");
+static_assert(KISSMALLOC_PAGE_PREALLOC < 256, "Page preallocation count needs must not exceed 255");
 
 static pthread_once_t bucket_init_control = PTHREAD_ONCE_INIT;
 static pthread_key_t bucket_key;
@@ -250,11 +252,10 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
 
         if (bucket)
         {
-            const size_t bytes_free = (size_t)KISSMALLOC_PAGE_SIZE - bucket->bytes_dirty;
-            if (size <= bytes_free) {
+            if (size <= bucket->bytes_free) {
                 if (size == 0) return NULL;
-                void *data = (uint8_t *)bucket + bucket->bytes_dirty;
-                bucket->bytes_dirty += size;
+                void *data = (uint8_t *)bucket + KISSMALLOC_PAGE_SIZE - bucket->bytes_free;
+                bucket->bytes_free -= size;
                 ++bucket->object_count; // this is atomic on all relevant processors!
                 return data;
             }
@@ -283,7 +284,7 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
         const size_t bucket_header_size = round_up_pow2(sizeof(bucket_t), KISSMALLOC_GRANULARITY);
         bucket = (bucket_t *)page_start;
         bucket->prealloc_count = prealloc_count;
-        bucket->bytes_dirty = bucket_header_size + size;
+        bucket->bytes_free = KISSMALLOC_PAGE_SIZE - bucket_header_size - size;
         bucket->object_count = 2;
         bucket->cache = cache;
         pthread_setspecific(bucket_key, bucket);
@@ -315,7 +316,7 @@ void KISSMALLOC_NAME(free)(void *ptr)
             if (!my_bucket) {
                 my_bucket = (bucket_t *)mmap(NULL, KISSMALLOC_PREALLOC_SIZE, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
                 if (!my_bucket) abort();
-                my_bucket->bytes_dirty = round_up_pow2(sizeof(bucket_t), KISSMALLOC_GRANULARITY);
+                my_bucket->bytes_free = KISSMALLOC_PAGE_SIZE - round_up_pow2(sizeof(bucket_t), KISSMALLOC_GRANULARITY);
                 my_bucket->object_count = 1;
                 my_bucket->cache = cache_create();
                 pthread_setspecific(bucket_key, my_bucket);
@@ -351,9 +352,9 @@ void *KISSMALLOC_NAME(realloc)(void *ptr, size_t size)
     if (page_offset > 0) {
         void *page_start = (uint8_t *)ptr - page_offset;
         bucket_t *bucket = (bucket_t *)page_start;
-        const size_t size_estimate_1 = bucket->bytes_dirty - page_offset;
-        const size_t size_estimate_2 = bucket->bytes_dirty - ((bucket->object_count - 1) << KISSMALLOC_GRANULARITY_SHIFT);
-            // FIXME: might not work cleanly when reallocating in a different thread
+        const size_t size_estimate_1 = KISSMALLOC_PAGE_SIZE - bucket->bytes_free - page_offset;
+        const size_t size_estimate_2 = KISSMALLOC_PAGE_SIZE - bucket->bytes_free - ((bucket->object_count - 1) << KISSMALLOC_GRANULARITY_SHIFT);
+            // might not work cleanly when reallocating in a different thread
         copy_size = (size_estimate_1 < size_estimate_2) ? size_estimate_1 : size_estimate_2;
     }
 
