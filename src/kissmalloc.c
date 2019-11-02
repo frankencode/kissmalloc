@@ -232,7 +232,7 @@ static void cache_push(struct cache_t *cache, struct bucket_t *page)
 }
 
 static pthread_once_t bucket_key_init_control = PTHREAD_ONCE_INIT;
-static pthread_key_t bucket_key = 0;
+static pthread_key_t bucket_key = -1;
 
 static void bucket_cleanup(void *arg)
 {

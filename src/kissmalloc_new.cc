@@ -108,7 +108,7 @@ void *operator new(std::size_t size, std::align_val_t alignment)
     if (KISSMALLOC_NAME(posix_memalign)(&data, alignment, size) != 0) KISSMALLOC_THROW;
     #else
     #ifdef KISSMALLOC_OVERLOAD_LIBC
-    if (KISSMALLOC_NAME(posix_memalign)(&data, alignment, size) != 0) KISSMALLOC_THROW;
+    if (posix_memalign(&data, alignment, size) != 0) KISSMALLOC_THROW;
     #else
     if (KISSMALLOC_NAME(posix_memalign)(&data, alignment, size + 2 * KISSMALLOC_REDZONE_SIZE) != 0) KISSMALLOC_THROW;
     if (data) {
@@ -126,7 +126,7 @@ void *operator new[](std::size_t size, std::align_val_t alignment)
     if (KISSMALLOC_NAME(posix_memalign)(&data, alignment, size) != 0) KISSMALLOC_THROW;
     #else
     #ifdef KISSMALLOC_OVERLOAD_LIBC
-    if (KISSMALLOC_NAME(posix_memalign)(&data, alignment, size) != 0) KISSMALLOC_THROW;
+    if (posix_memalign(&data, alignment, size) != 0) KISSMALLOC_THROW;
     #else
     if (KISSMALLOC_NAME(posix_memalign)(&data, alignment, size + 2 * KISSMALLOC_REDZONE_SIZE) != 0) KISSMALLOC_THROW;
     if (data) {
@@ -144,7 +144,7 @@ void *operator new(std::size_t size, std::align_val_t alignment, const std::noth
     KISSMALLOC_NAME(posix_memalign)(&data, alignment, size);
     #else
     #ifdef KISSMALLOC_OVERLOAD_LIBC
-    KISSMALLOC_NAME(posix_memalign)(&data, alignment, size);
+    posix_memalign(&data, alignment, size);
     #else
     KISSMALLOC_NAME(posix_memalign)(&data, alignment, size + 2 * KISSMALLOC_REDZONE_SIZE);
     if (data) {
@@ -163,7 +163,7 @@ void *operator new[](std::size_t size, std::align_val_t alignment, const std::no
     KISSMALLOC_NAME(posix_memalign)(&data, alignment, size);
     #else
     #ifdef KISSMALLOC_OVERLOAD_LIBC
-    KISSMALLOC_NAME(posix_memalign)(&data, alignment, size);
+    posix_memalign(&data, alignment, size);
     #else
     KISSMALLOC_NAME(posix_memalign)(&data, alignment, size + 2 * KISSMALLOC_REDZONE_SIZE);
     if (data) {
