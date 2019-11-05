@@ -514,14 +514,16 @@ void *KISSMALLOC_NAME(pvalloc)(size_t size)
     return KISSMALLOC_NAME(malloc)(round_up_pow2(size, page_size_get()));
 }
 
-/** Number of bytes allocated by the calling thread that has not yet been freed
+/** Number of bytes allocated minus number of bytes freed by the calling thread
   */
-size_t KISSMALLOC_NAME(memsource)()
+ssize_t KISSMALLOC_NAME(memsource)()
 {
-    return pthread_getspecific(source_key) - NULL;
+    const size_t page_size = page_size_get();
+    const ssize_t offset = (bucket_get_mine(page_size)->object_count == 1) ? -(ssize_t)page_size : 0;
+    return (pthread_getspecific(source_key) - NULL) + offset;
 }
 
-/** Total number of bytes allocated and has not yet been freed
+/** Number of bytes allocated minus number of bytes freed
   */
 size_t KISSMALLOC_NAME(memusage)()
 {

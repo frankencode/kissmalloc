@@ -34,7 +34,7 @@ void *KISSMALLOC_NAME(memalign)(size_t alignment, size_t size);
 void *KISSMALLOC_NAME(valloc)(size_t size);
 void *KISSMALLOC_NAME(pvalloc)(size_t size);
 
-size_t KISSMALLOC_NAME(memsource)();
+ssize_t KISSMALLOC_NAME(memsource)();
 size_t KISSMALLOC_NAME(memusage)();
 
 #ifdef __cplusplus
