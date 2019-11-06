@@ -439,7 +439,7 @@ void *KISSMALLOC_NAME(realloc)(void *ptr, size_t size)
     size_t copy_size = page_size;
     size_t page_offset = (size_t)((uint8_t *)ptr - (uint8_t *)NULL) & (page_size - 1);
 
-    if (page_offset > 0) {
+    if (page_offset > 8) {
         void *page_start = (uint8_t *)ptr - page_offset;
         struct bucket_t *bucket = (struct bucket_t *)page_start;
         const size_t size_estimate_1 = page_size - bucket->bytes_free - page_offset;
@@ -480,7 +480,7 @@ int KISSMALLOC_NAME(posix_memalign)(void **ptr, size_t alignment, size_t size)
 
     const size_t page_size = page_size_get();
 
-    if (alignment + size < page_size >> 1) {
+    if (alignment + size <= page_size >> 1) {
         uint8_t *ptr_byte = (uint8_t *)KISSMALLOC_NAME(malloc)(alignment + size);
         if (ptr_byte != NULL) {
             size_t r = (size_t)(ptr_byte - (uint8_t *)NULL) & (alignment - 1);
