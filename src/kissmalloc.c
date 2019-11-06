@@ -78,6 +78,7 @@ struct cache_t {
 
 #pragma pack(pop)
 
+static_assert(sizeof(struct bucket_t) > 8, "The bucket_t header must be greater than 8 bytes");
 static_assert(sizeof(struct bucket_t) <= KISSMALLOC_GRANULARITY, "The bucket_t header must not exceed KISSMALLOC_GRANULARITY bytes");
 
 inline static size_t round_up_pow2(const size_t x, const size_t g)
@@ -345,7 +346,7 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
 {
     const size_t page_size = page_size_get();
 
-    if (size < page_size >> 1)
+    if (size <= page_size >> 1)
     {
         if (size == 0) return NULL;
 
@@ -361,6 +362,20 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
         }
 
         return bucket_advance(bucket, page_size, size);
+    }
+    else if ((size & (page_size - 1)) != 0)
+    {
+        size = round_up_pow2(size + 8, page_size);
+        void *head = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+        if (head == MAP_FAILED) {
+            errno = ENOMEM;
+            return NULL;
+        }
+        *(uint64_t *)head = size;
+
+        usage_add(size);
+
+        return (uint8_t *)head + 8;
     }
 
     size = round_up_pow2(size, page_size) + page_size;
@@ -382,7 +397,7 @@ void KISSMALLOC_NAME(free)(void *ptr)
     const size_t page_size = page_size_get();
     const size_t page_offset = (size_t)(((uint8_t *)ptr - (uint8_t *)NULL) & (page_size - 1));
 
-    if (page_offset != 0) {
+    if (page_offset > 8) {
         void *page_start = (uint8_t *)ptr - page_offset;
         struct bucket_t *bucket = (struct bucket_t *)page_start;
         if (!__sync_sub_and_fetch(&bucket->object_count, 1)) {
@@ -390,9 +405,15 @@ void KISSMALLOC_NAME(free)(void *ptr)
             usage_add(-page_size);
         }
     }
-    else if (ptr != NULL) {
+    else if (page_offset == 8) {
+        void *head = (uint8_t *)ptr - 8;
+        const size_t size = *(uint64_t *)head;
+        if (munmap(head, size) == -1) abort();
+        usage_add(-size);
+    }
+    else if (page_offset == 0 && ptr != NULL) {
         void *head = (uint8_t *)ptr - page_size;
-        size_t size = *(size_t *)head;
+        const size_t size = *(size_t *)head;
         if (munmap(head, size) == -1) abort();
         usage_add(-size);
     }
