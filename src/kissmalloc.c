@@ -294,14 +294,16 @@ static struct bucket_t *bucket_create_initial(const size_t page_size)
     return bucket;
 }
 
-static void *bucket_advance(struct bucket_t *bucket, const size_t page_size, const size_t item_size)
+static void *bucket_advance(struct bucket_t *bucket, const size_t page_size, const size_t item_size, const int activate)
 {
     uint32_t prealloc_count = bucket->cache->prealloc_count;
     struct cache_t *cache = bucket->cache;
 
-    if (!__sync_sub_and_fetch(&bucket->object_count, 1)) {
-        cache_push(bucket->cache, bucket);
-        usage_add(-page_size);
+    if (activate) {
+        if (!__sync_sub_and_fetch(&bucket->object_count, 1)) {
+            cache_push(bucket->cache, bucket);
+            usage_add(-page_size);
+        }
     }
 
     void *page_start = NULL;
@@ -324,10 +326,10 @@ static void *bucket_advance(struct bucket_t *bucket, const size_t page_size, con
 
     bucket = (struct bucket_t *)page_start;
     bucket->bytes_free = page_size - bucket_header_size - item_size;
-    bucket->object_count = 2;
+    bucket->object_count = 1 + activate;
     bucket->cache = cache;
 
-    pthread_setspecific(bucket_key, bucket);
+    if (activate) pthread_setspecific(bucket_key, bucket);
 
     usage_add(page_size);
 
@@ -360,7 +362,15 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
             return data;
         }
 
-        return bucket_advance(bucket, page_size, size);
+        return bucket_advance(bucket, page_size, size, 1);
+    }
+    else if (size < page_size - KISSMALLOC_GRANULARITY)
+    {
+        size = round_up_pow2(size, KISSMALLOC_GRANULARITY);
+
+        struct bucket_t *bucket = bucket_get_mine(page_size);
+
+        return bucket_advance(bucket, page_size, size, 0);
     }
 
     size = round_up_pow2(size, page_size) + page_size;
