@@ -80,6 +80,9 @@
 
 static_assert(KISSMALLOC_IS_POW2(KISSMALLOC_GRANULARITY), "KISSMALLOC_GRANULARITY needs to be a power of two");
 
+#define KISSMALLOC_LIKELY(x) __builtin_expect((x),1)
+#define KISSMALLOC_UNLIKELY(x) __builtin_expect((x),0)
+
 #pragma pack(push,1)
 
 struct cache_t;
@@ -251,8 +254,11 @@ static void cache_push(struct cache_t *cache, struct bucket_t *page)
     cache_bubble_up(cache);
 }
 
-static pthread_once_t bucket_key_init_control = PTHREAD_ONCE_INIT;
+static pthread_once_t library_init_control = PTHREAD_ONCE_INIT;
 static pthread_key_t bucket_key = -1;
+static pthread_key_t source_key = -1;
+
+static size_t usage_total = 0;
 
 static void bucket_cleanup(void *arg)
 {
@@ -275,15 +281,22 @@ static void bucket_cleanup(void *arg)
     }
 }
 
-static void bucket_key_init()
+static void library_init()
 {
     if (pthread_key_create(&bucket_key, bucket_cleanup) != 0) abort();
+    if (pthread_key_create(&source_key, NULL) != 0) abort();
 }
 
-static struct bucket_t *bucket_create_initial()
+inline static void usage_add(size_t delta)
 {
-    const size_t page_size = page_size_get();
+    uint8_t *source = (uint8_t *)pthread_getspecific(source_key);
+    source += delta;
+    pthread_setspecific(source_key, source);
+    __sync_add_and_fetch(&usage_total, delta);
+}
 
+static struct bucket_t *bucket_create_initial(const size_t page_size)
+{
     void *page_start = mmap(NULL, KISSMALLOC_PAGE_PREALLOC * page_size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
     if (page_start == MAP_FAILED) abort();
 
@@ -296,19 +309,25 @@ static struct bucket_t *bucket_create_initial()
     bucket->object_count = 1;
     bucket->cache = cache;
 
-    pthread_once(&bucket_key_init_control, bucket_key_init);
+    pthread_once(&library_init_control, library_init);
     pthread_setspecific(bucket_key, bucket);
+
+    usage_add(page_size);
 
     return bucket;
 }
 
-static void *bucket_advance(struct bucket_t *bucket, const size_t page_size, const size_t item_size)
+static void *bucket_advance(struct bucket_t *bucket, const size_t page_size, const size_t item_size, const int activate)
 {
     uint32_t prealloc_count = bucket->cache->prealloc_count;
     struct cache_t *cache = bucket->cache;
 
-    if (!__sync_sub_and_fetch(&bucket->object_count, 1))
-        cache_push(bucket->cache, bucket);
+    if (activate) {
+        if (!__sync_sub_and_fetch(&bucket->object_count, 1)) {
+            cache_push(bucket->cache, bucket);
+            usage_add(-page_size);
+        }
+    }
 
     void *page_start = NULL;
     if (prealloc_count > 0) {
@@ -330,19 +349,20 @@ static void *bucket_advance(struct bucket_t *bucket, const size_t page_size, con
 
     bucket = (struct bucket_t *)page_start;
     bucket->bytes_free = page_size - bucket_header_size - item_size;
-    bucket->object_count = 2;
+    bucket->object_count = 1 + activate;
     bucket->cache = cache;
 
-    pthread_setspecific(bucket_key, bucket);
+    if (activate) pthread_setspecific(bucket_key, bucket);
+
+    usage_add(page_size);
 
     return (uint8_t *)page_start + bucket_header_size;
 }
 
-inline static struct bucket_t *bucket_get_mine()
+inline static struct bucket_t *bucket_get_mine(const size_t page_size)
 {
-    // pthread_once(&bucket_key_init_control, bucket_key_init);
     struct bucket_t *bucket = (struct bucket_t *)pthread_getspecific(bucket_key);
-    if (bucket == NULL) bucket = bucket_create_initial();
+    if (bucket == NULL) bucket = bucket_create_initial(page_size);
     return bucket;
 }
 
@@ -350,15 +370,15 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
 {
     const size_t page_size = page_size_get();
 
-    if (size < page_size >> 1)
+    if (KISSMALLOC_LIKELY(size <= page_size - KISSMALLOC_GRANULARITY))
     {
-        if (size == 0) return NULL;
+        if (KISSMALLOC_UNLIKELY(size == 0)) return NULL;
 
         size = round_up_pow2(size, KISSMALLOC_GRANULARITY);
 
-        struct bucket_t *bucket = bucket_get_mine();
+        struct bucket_t *bucket = bucket_get_mine(page_size);
 
-        if (size <= bucket->bytes_free) {
+        if (KISSMALLOC_LIKELY(size <= bucket->bytes_free)) {
             void *data = (uint8_t *)bucket + page_size - bucket->bytes_free;
             bucket->bytes_free -= size;
             ++bucket->object_count;
@@ -371,11 +391,14 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
     size = round_up_pow2(size, page_size) + page_size;
 
     void *head = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-    if (head == MAP_FAILED) {
+    if (KISSMALLOC_UNLIKELY(head == MAP_FAILED)) {
         errno = ENOMEM;
         return NULL;
     }
     *(size_t *)head = size;
+
+    usage_add(size);
+
     return (uint8_t *)head + page_size;
 }
 
@@ -384,15 +407,19 @@ void KISSMALLOC_NAME(free)(void *ptr)
     const size_t page_size = page_size_get();
     const size_t page_offset = (size_t)(((uint8_t *)ptr - (uint8_t *)NULL) & (page_size - 1));
 
-    if (page_offset != 0) {
+    if (KISSMALLOC_LIKELY(page_offset != 0)) {
         void *page_start = (uint8_t *)ptr - page_offset;
         struct bucket_t *bucket = (struct bucket_t *)page_start;
-        if (!__sync_sub_and_fetch(&bucket->object_count, 1))
-            cache_push(bucket_get_mine()->cache, bucket);
+        if (KISSMALLOC_UNLIKELY(!__sync_sub_and_fetch(&bucket->object_count, 1))) {
+            cache_push(bucket_get_mine(page_size)->cache, bucket);
+            usage_add(-page_size);
+        }
     }
     else if (ptr != NULL) {
         void *head = (uint8_t *)ptr - page_size;
-        if (munmap(head, *(size_t *)head) == -1) abort();
+        size_t size = *(size_t *)head;
+        if (munmap(head, size) == -1) abort();
+        usage_add(-size);
     }
 }
 
@@ -510,6 +537,22 @@ void *KISSMALLOC_NAME(valloc)(size_t size)
 void *KISSMALLOC_NAME(pvalloc)(size_t size)
 {
     return KISSMALLOC_NAME(malloc)(round_up_pow2(size, page_size_get()));
+}
+
+/** Number of bytes allocated minus number of bytes freed by the calling thread
+  */
+ssize_t KISSMALLOC_NAME(memsource)()
+{
+    const size_t page_size = page_size_get();
+    const ssize_t offset = (bucket_get_mine(page_size)->object_count == 1) ? -(ssize_t)page_size : 0;
+    return (uint8_t *)pthread_getspecific(source_key) - (uint8_t *)NULL + offset;
+}
+
+/** Number of bytes allocated minus number of bytes freed
+  */
+size_t KISSMALLOC_NAME(memusage)()
+{
+    return __sync_add_and_fetch(&usage_total, 0);
 }
 
 #include <new>

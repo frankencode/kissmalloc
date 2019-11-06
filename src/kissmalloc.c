@@ -60,6 +60,9 @@
 
 static_assert(KISSMALLOC_IS_POW2(KISSMALLOC_GRANULARITY), "KISSMALLOC_GRANULARITY needs to be a power of two");
 
+#define KISSMALLOC_LIKELY(x) __builtin_expect((x),1)
+#define KISSMALLOC_UNLIKELY(x) __builtin_expect((x),0)
+
 #pragma pack(push,1)
 
 struct cache_t;
@@ -294,16 +297,14 @@ static struct bucket_t *bucket_create_initial(const size_t page_size)
     return bucket;
 }
 
-static void *bucket_advance(struct bucket_t *bucket, const size_t page_size, const size_t item_size, const int activate)
+static void *bucket_advance(struct bucket_t *bucket, const size_t page_size, const size_t item_size)
 {
     uint32_t prealloc_count = bucket->cache->prealloc_count;
     struct cache_t *cache = bucket->cache;
 
-    if (activate) {
-        if (!__sync_sub_and_fetch(&bucket->object_count, 1)) {
-            cache_push(bucket->cache, bucket);
-            usage_add(-page_size);
-        }
+    if (!__sync_sub_and_fetch(&bucket->object_count, 1)) {
+        cache_push(bucket->cache, bucket);
+        usage_add(-page_size);
     }
 
     void *page_start = NULL;
@@ -326,10 +327,10 @@ static void *bucket_advance(struct bucket_t *bucket, const size_t page_size, con
 
     bucket = (struct bucket_t *)page_start;
     bucket->bytes_free = page_size - bucket_header_size - item_size;
-    bucket->object_count = 1 + activate;
+    bucket->object_count = 2;
     bucket->cache = cache;
 
-    if (activate) pthread_setspecific(bucket_key, bucket);
+    pthread_setspecific(bucket_key, bucket);
 
     usage_add(page_size);
 
@@ -347,36 +348,28 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
 {
     const size_t page_size = page_size_get();
 
-    if (size < page_size >> 1)
+    if (KISSMALLOC_LIKELY(size <= page_size - KISSMALLOC_GRANULARITY))
     {
-        if (size == 0) return NULL;
+        if (KISSMALLOC_UNLIKELY(size == 0)) return NULL;
 
         size = round_up_pow2(size, KISSMALLOC_GRANULARITY);
 
         struct bucket_t *bucket = bucket_get_mine(page_size);
 
-        if (size <= bucket->bytes_free) {
+        if (KISSMALLOC_LIKELY(size <= bucket->bytes_free)) {
             void *data = (uint8_t *)bucket + page_size - bucket->bytes_free;
             bucket->bytes_free -= size;
             ++bucket->object_count;
             return data;
         }
 
-        return bucket_advance(bucket, page_size, size, 1);
-    }
-    else if (size < page_size - KISSMALLOC_GRANULARITY)
-    {
-        size = round_up_pow2(size, KISSMALLOC_GRANULARITY);
-
-        struct bucket_t *bucket = bucket_get_mine(page_size);
-
-        return bucket_advance(bucket, page_size, size, 0);
+        return bucket_advance(bucket, page_size, size);
     }
 
     size = round_up_pow2(size, page_size) + page_size;
 
     void *head = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-    if (head == MAP_FAILED) {
+    if (KISSMALLOC_UNLIKELY(head == MAP_FAILED)) {
         errno = ENOMEM;
         return NULL;
     }
@@ -392,10 +385,10 @@ void KISSMALLOC_NAME(free)(void *ptr)
     const size_t page_size = page_size_get();
     const size_t page_offset = (size_t)(((uint8_t *)ptr - (uint8_t *)NULL) & (page_size - 1));
 
-    if (page_offset != 0) {
+    if (KISSMALLOC_LIKELY(page_offset != 0)) {
         void *page_start = (uint8_t *)ptr - page_offset;
         struct bucket_t *bucket = (struct bucket_t *)page_start;
-        if (!__sync_sub_and_fetch(&bucket->object_count, 1)) {
+        if (KISSMALLOC_UNLIKELY(!__sync_sub_and_fetch(&bucket->object_count, 1))) {
             cache_push(bucket_get_mine(page_size)->cache, bucket);
             usage_add(-page_size);
         }
@@ -530,7 +523,7 @@ ssize_t KISSMALLOC_NAME(memsource)()
 {
     const size_t page_size = page_size_get();
     const ssize_t offset = (bucket_get_mine(page_size)->object_count == 1) ? -(ssize_t)page_size : 0;
-    return (pthread_getspecific(source_key) - NULL) + offset;
+    return (uint8_t *)pthread_getspecific(source_key) - (uint8_t *)NULL + offset;
 }
 
 /** Number of bytes allocated minus number of bytes freed
