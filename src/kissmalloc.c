@@ -348,7 +348,7 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
 {
     const size_t page_size = page_size_get();
 
-    if (KISSMALLOC_LIKELY(size <= page_size - KISSMALLOC_GRANULARITY))
+    if (KISSMALLOC_LIKELY(size < page_size >> 1))
     {
         if (KISSMALLOC_UNLIKELY(size == 0)) return NULL;
 
@@ -357,6 +357,21 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
         struct bucket_t *bucket = bucket_get_mine(page_size);
 
         if (KISSMALLOC_LIKELY(size <= bucket->bytes_free)) {
+            void *data = (uint8_t *)bucket + page_size - bucket->bytes_free;
+            bucket->bytes_free -= size;
+            ++bucket->object_count;
+            return data;
+        }
+
+        return bucket_advance(bucket, page_size, size);
+    }
+    else if (size <= page_size - KISSMALLOC_GRANULARITY)
+    {
+        size = round_up_pow2(size, KISSMALLOC_GRANULARITY);
+
+        struct bucket_t *bucket = bucket_get_mine(page_size);
+
+        if (size <= bucket->bytes_free) {
             void *data = (uint8_t *)bucket + page_size - bucket->bytes_free;
             bucket->bytes_free -= size;
             ++bucket->object_count;
