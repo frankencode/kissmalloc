@@ -27,7 +27,7 @@
 #define KISSMALLOC_GRANULARITY 16 // TODO: autodetect
 #endif
 
-/// Page size (0 for autodetect)
+/// Page size (0 for autodetect, but beware of performance penalty)
 #ifndef KISSMALLOC_PAGE_SIZE
 #define KISSMALLOC_PAGE_SIZE 0
 #endif
