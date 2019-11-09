@@ -47,10 +47,14 @@
 #define KISSMALLOC_GRANULARITY 16 // TODO: autodetect
 #endif
 
-/// Page size (0 for autodetect)
+/// Page size (0 for autodetect, but beware of performance penalty)
 #ifndef KISSMALLOC_PAGE_SIZE
 #define KISSMALLOC_PAGE_SIZE 0
 #endif
+
+/// Output size distribution histograms at exit (debug option)
+#define KISSMALLOC_HISTOGRAM
+#define KISSMALLOC_HISTOGRAM_SIZE 256
 
 ////////////////////////////////////////////////////////////////////////////////
 /// INTERNALS...
@@ -233,7 +237,7 @@ inline static size_t cache_size_get()
 
 static struct cache_t *cache_create()
 {
-    struct cache_t *cache = (struct cache_t *)mmap(NULL, cache_size_get(), PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE|MAP_POPULATE, -1, 0);
+    struct cache_t *cache = (struct cache_t *)mmap(NULL, cache_size_get(), PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
     if (cache == MAP_FAILED) abort();
     return cache;
 }
@@ -317,16 +321,14 @@ static struct bucket_t *bucket_create_initial(const size_t page_size)
     return bucket;
 }
 
-static void *bucket_advance(struct bucket_t *bucket, const size_t page_size, const size_t item_size, const int activate)
+static void *bucket_advance(struct bucket_t *bucket, const size_t page_size, const size_t item_size)
 {
     uint32_t prealloc_count = bucket->cache->prealloc_count;
     struct cache_t *cache = bucket->cache;
 
-    if (activate) {
-        if (!__sync_sub_and_fetch(&bucket->object_count, 1)) {
-            cache_push(bucket->cache, bucket);
-            usage_add(-page_size);
-        }
+    if (!__sync_sub_and_fetch(&bucket->object_count, 1)) {
+        cache_push(bucket->cache, bucket);
+        usage_add(-page_size);
     }
 
     void *page_start = NULL;
@@ -349,10 +351,10 @@ static void *bucket_advance(struct bucket_t *bucket, const size_t page_size, con
 
     bucket = (struct bucket_t *)page_start;
     bucket->bytes_free = page_size - bucket_header_size - item_size;
-    bucket->object_count = 1 + activate;
+    bucket->object_count = 2;
     bucket->cache = cache;
 
-    if (activate) pthread_setspecific(bucket_key, bucket);
+    pthread_setspecific(bucket_key, bucket);
 
     usage_add(page_size);
 
@@ -366,11 +368,113 @@ inline static struct bucket_t *bucket_get_mine(const size_t page_size)
     return bucket;
 }
 
+#ifdef KISSMALLOC_HISTOGRAM
+
+#include <sched.h>
+
+static uint64_t *histogram = (uint64_t *)NULL;
+static char histogram_lock = 0;
+
+static char *histogram_trace_text(const char *text, char *eoi)
+{
+    while (*text) {
+        *eoi = *text;
+        ++eoi;
+        ++text;
+    }
+    return eoi;
+}
+
+static char *histogram_trace_value(uint64_t value, char *eoi)
+{
+    char buf[256];
+    int fill = 0;
+    while (value > 0) {
+        buf[fill] = '0' + (char)(value % 10);
+        value /= 10;
+        ++fill;
+    }
+    if (fill == 0) {
+        buf[0] = '0';
+        fill = 1;
+    }
+    for (int i = fill - 1; i >= 0; --i) {
+        *eoi = buf[i];
+        ++eoi;
+    }
+    return eoi;
+}
+
+static void histogram_write_line(const char *text)
+{
+    char buffer[256];
+    char *cursor = buffer;
+    cursor = histogram_trace_text(text, cursor);
+    cursor = histogram_trace_text("\n", cursor);
+    write(1, buffer, cursor - buffer);
+}
+
+inline static size_t histogram_size_get()
+{
+    return round_up_pow2(KISSMALLOC_HISTOGRAM_SIZE * sizeof(uint64_t), page_size_get());
+}
+
+static void histogram_cleanup()
+{
+    histogram_write_line("# size\tcount");
+
+    char line[256];
+
+    for (int i = 0; i < KISSMALLOC_HISTOGRAM_SIZE; ++i) {
+        char *cursor = line;
+        cursor = histogram_trace_value(i * KISSMALLOC_GRANULARITY, cursor);
+        cursor = histogram_trace_text("\t", cursor);
+        cursor = histogram_trace_value(histogram[i], cursor);
+        cursor = histogram_trace_text("\n", cursor);
+        write(1, line, cursor - line);
+    }
+
+    if (munmap((void *)histogram, histogram_size_get()) == -1) abort();
+}
+
+static uint64_t *histogram_allocate()
+{
+    void *page_start = mmap(NULL, histogram_size_get(), PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    if (page_start == MAP_FAILED) abort();
+
+    atexit(histogram_cleanup);
+
+    return (uint64_t *)page_start;
+}
+
+static uint64_t *histogram_get()
+{
+    if (!histogram) {
+        while (!__sync_bool_compare_and_swap(&histogram_lock, 0, 1)) sched_yield();
+        if (!histogram) histogram = histogram_allocate();
+        histogram_lock = 0;
+    }
+    return histogram;
+}
+
+inline static void histogram_sample(size_t item_size)
+{
+    const size_t item_size_rounded = round_up_pow2(item_size, KISSMALLOC_GRANULARITY);
+    int class_index = item_size_rounded >> KISSMALLOC_GRANULARITY_SHIFT;
+    if (class_index < KISSMALLOC_HISTOGRAM_SIZE) __sync_add_and_fetch(&histogram_get()[class_index], 1);
+}
+
+#endif // KISSMALLOC_HISTOGRAM
+
 void *KISSMALLOC_NAME(malloc)(size_t size)
 {
+    #ifdef KISSMALLOC_HISTOGRAM
+    histogram_sample(size);
+    #endif
+
     const size_t page_size = page_size_get();
 
-    if (KISSMALLOC_LIKELY(size <= page_size - KISSMALLOC_GRANULARITY))
+    if (KISSMALLOC_LIKELY(size < page_size >> 1))
     {
         if (KISSMALLOC_UNLIKELY(size == 0)) return NULL;
 
@@ -379,6 +483,21 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
         struct bucket_t *bucket = bucket_get_mine(page_size);
 
         if (KISSMALLOC_LIKELY(size <= bucket->bytes_free)) {
+            void *data = (uint8_t *)bucket + page_size - bucket->bytes_free;
+            bucket->bytes_free -= size;
+            ++bucket->object_count;
+            return data;
+        }
+
+        return bucket_advance(bucket, page_size, size);
+    }
+    else if (size <= page_size - KISSMALLOC_GRANULARITY)
+    {
+        size = round_up_pow2(size, KISSMALLOC_GRANULARITY);
+
+        struct bucket_t *bucket = bucket_get_mine(page_size);
+
+        if (size <= bucket->bytes_free) {
             void *data = (uint8_t *)bucket + page_size - bucket->bytes_free;
             bucket->bytes_free -= size;
             ++bucket->object_count;
