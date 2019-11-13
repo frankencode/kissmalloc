@@ -34,17 +34,17 @@
 
 /// Number of pages to preallocate
 #ifndef KISSMALLOC_PAGE_PREALLOC
-#define KISSMALLOC_PAGE_PREALLOC 256
+#define KISSMALLOC_PAGE_PREALLOC (sizeof(long) == 4 ? 64 : 256)
 #endif
 
 /// Number of freed pages to cache at maximum (should be N * KISSMALLOC_PAGE_PREALLOC - 1)
 #ifndef KISSMALLOC_PAGE_CACHE
-#define KISSMALLOC_PAGE_CACHE 511
+#define KISSMALLOC_PAGE_CACHE (2 * KISSMALLOC_PAGE_PREALLOC - 1)
 #endif
 
 /// System memory granularity, e.g. XMMS movdqa requires 16
 #ifndef KISSMALLOC_GRANULARITY
-#define KISSMALLOC_GRANULARITY 16 // TODO: autodetect
+#define KISSMALLOC_GRANULARITY (2 * sizeof(size_t) > __alignof__(long double) ? 2 * sizeof(size_t) : __alignof__(long double))
 #endif
 
 /// Page size (0 for autodetect, but beware of performance penalty)
@@ -53,8 +53,10 @@
 #endif
 
 /// Output size distribution histograms at exit (debug option)
+#if 0
 #define KISSMALLOC_HISTOGRAM
 #define KISSMALLOC_HISTOGRAM_SIZE 256
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 /// INTERNALS...
@@ -248,7 +250,7 @@ static void cache_cleanup(struct cache_t *cache)
     if (munmap(cache, cache_size_get()) == -1) abort();
 }
 
-static void cache_push(struct cache_t *cache, struct bucket_t *page)
+static void cache_push(struct cache_t *cache, struct bucket_t *page, size_t page_size)
 {
     if (cache->fill == KISSMALLOC_PAGE_CACHE)
         cache_reduce(cache, KISSMALLOC_PAGE_CACHE >> 1);
@@ -327,7 +329,7 @@ static void *bucket_advance(struct bucket_t *bucket, const size_t page_size, con
     struct cache_t *cache = bucket->cache;
 
     if (!__sync_sub_and_fetch(&bucket->object_count, 1)) {
-        cache_push(bucket->cache, bucket);
+        cache_push(bucket->cache, bucket, page_size);
         usage_add(-page_size);
     }
 
@@ -342,6 +344,7 @@ static void *bucket_advance(struct bucket_t *bucket, const size_t page_size, con
             errno = ENOMEM;
             return NULL;
         }
+
         prealloc_count = KISSMALLOC_PAGE_PREALLOC - 1;
     }
 
@@ -530,7 +533,7 @@ void KISSMALLOC_NAME(free)(void *ptr)
         void *page_start = (uint8_t *)ptr - page_offset;
         struct bucket_t *bucket = (struct bucket_t *)page_start;
         if (KISSMALLOC_UNLIKELY(!__sync_sub_and_fetch(&bucket->object_count, 1))) {
-            cache_push(bucket_get_mine(page_size)->cache, bucket);
+            cache_push(bucket_get_mine(page_size)->cache, bucket, page_size);
             usage_add(-page_size);
         }
     }

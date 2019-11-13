@@ -14,12 +14,12 @@
 
 /// Number of pages to preallocate
 #ifndef KISSMALLOC_PAGE_PREALLOC
-#define KISSMALLOC_PAGE_PREALLOC 256
+#define KISSMALLOC_PAGE_PREALLOC (sizeof(long) == 4 ? 64 : 256)
 #endif
 
 /// Number of freed pages to cache at maximum (should be N * KISSMALLOC_PAGE_PREALLOC - 1)
 #ifndef KISSMALLOC_PAGE_CACHE
-#define KISSMALLOC_PAGE_CACHE 511
+#define KISSMALLOC_PAGE_CACHE (2 * KISSMALLOC_PAGE_PREALLOC - 1)
 #endif
 
 /// System memory granularity, e.g. XMMS movdqa requires 16
