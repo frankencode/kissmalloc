@@ -506,6 +506,8 @@ void *KISSMALLOC_NAME(malloc)(size_t size)
 
 void KISSMALLOC_NAME(free)(void *ptr)
 {
+    if (ptr == NULL) return;
+
     const size_t page_size = page_size_get();
     const size_t page_offset = (size_t)(((uint8_t *)ptr - (uint8_t *)NULL) & (page_size - 1));
 

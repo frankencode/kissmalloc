@@ -187,6 +187,9 @@ void operator delete(void *data) KISSMALLOC_NOEXCEPT
     #ifdef KISSMALLOC_OVERLOAD_LIBC
     free(data);
     #else
+    #if KISSMALLOC_REDZONE_SIZE > 0
+    if (data == nullptr) return;
+    #endif
     KISSMALLOC_NAME(free)((void *)((char *)data - KISSMALLOC_REDZONE_SIZE));
     VALGRIND_FREELIKE_BLOCK(data, KISSMALLOC_REDZONE_SIZE);
     #endif
@@ -201,6 +204,9 @@ void operator delete[](void *data) KISSMALLOC_NOEXCEPT
     #ifdef KISSMALLOC_OVERLOAD_LIBC
     free(data);
     #else
+    #if KISSMALLOC_REDZONE_SIZE > 0
+    if (data == nullptr) return;
+    #endif
     KISSMALLOC_NAME(free)((void *)((char *)data - KISSMALLOC_REDZONE_SIZE));
     VALGRIND_FREELIKE_BLOCK(data, KISSMALLOC_REDZONE_SIZE);
     #endif
@@ -215,6 +221,9 @@ void operator delete(void *data, const std::nothrow_t &) KISSMALLOC_NOEXCEPT
     #ifdef KISSMALLOC_OVERLOAD_LIBC
     free(data);
     #else
+    #if KISSMALLOC_REDZONE_SIZE > 0
+    if (data == nullptr) return;
+    #endif
     KISSMALLOC_NAME(free)((void *)((char *)data - KISSMALLOC_REDZONE_SIZE));
     VALGRIND_FREELIKE_BLOCK(data, KISSMALLOC_REDZONE_SIZE);
     #endif
@@ -229,6 +238,9 @@ void operator delete[](void *data, const std::nothrow_t &) KISSMALLOC_NOEXCEPT
     #ifdef KISSMALLOC_OVERLOAD_LIBC
     free(data);
     #else
+    #if KISSMALLOC_REDZONE_SIZE > 0
+    if (data == nullptr) return;
+    #endif
     KISSMALLOC_NAME(free)((void *)((char *)data - KISSMALLOC_REDZONE_SIZE));
     VALGRIND_FREELIKE_BLOCK(data, KISSMALLOC_REDZONE_SIZE);
     #endif
@@ -245,6 +257,9 @@ void operator delete(void *data, std::size_t size) noexcept
     #ifdef KISSMALLOC_OVERLOAD_LIBC
     free(data);
     #else
+    #if KISSMALLOC_REDZONE_SIZE > 0
+    if (data == nullptr) return;
+    #endif
     KISSMALLOC_NAME(free)((void *)((char *)data - KISSMALLOC_REDZONE_SIZE));
     VALGRIND_FREELIKE_BLOCK(data, KISSMALLOC_REDZONE_SIZE);
     #endif
@@ -259,6 +274,9 @@ void operator delete[](void *data, std::size_t size) noexcept
     #ifdef KISSMALLOC_OVERLOAD_LIBC
     free(data);
     #else
+    #if KISSMALLOC_REDZONE_SIZE > 0
+    if (data == nullptr) return;
+    #endif
     KISSMALLOC_NAME(free)((void *)((char *)data - KISSMALLOC_REDZONE_SIZE));
     VALGRIND_FREELIKE_BLOCK(data, KISSMALLOC_REDZONE_SIZE);
     #endif
@@ -277,6 +295,9 @@ void operator delete(void *data, std::align_val_t alignment) noexcept
     #ifdef KISSMALLOC_OVERLOAD_LIBC
     free(data);
     #else
+    #if KISSMALLOC_REDZONE_SIZE > 0
+    if (data == nullptr) return;
+    #endif
     KISSMALLOC_NAME(free)((void *)((char *)data - KISSMALLOC_REDZONE_SIZE));
     VALGRIND_FREELIKE_BLOCK(data, KISSMALLOC_REDZONE_SIZE);
     #endif
@@ -291,6 +312,9 @@ void operator delete[](void *data, std::align_val_t alignment) noexcept
     #ifdef KISSMALLOC_OVERLOAD_LIBC
     free(data);
     #else
+    #if KISSMALLOC_REDZONE_SIZE > 0
+    if (data == nullptr) return;
+    #endif
     KISSMALLOC_NAME(free)((void *)((char *)data - KISSMALLOC_REDZONE_SIZE));
     VALGRIND_FREELIKE_BLOCK(data, KISSMALLOC_REDZONE_SIZE);
     #endif
@@ -305,6 +329,9 @@ void operator delete(void *data, std::size_t size, std::align_val_t alignment) n
     #ifdef KISSMALLOC_OVERLOAD_LIBC
     free(data);
     #else
+    #if KISSMALLOC_REDZONE_SIZE > 0
+    if (data == nullptr) return;
+    #endif
     KISSMALLOC_NAME(free)((void *)((char *)data - KISSMALLOC_REDZONE_SIZE));
     VALGRIND_FREELIKE_BLOCK(data, KISSMALLOC_REDZONE_SIZE);
     #endif
@@ -319,6 +346,9 @@ void operator delete[](void *data, std::size_t size, std::align_val_t alignment)
     #ifdef KISSMALLOC_OVERLOAD_LIBC
     free(data);
     #else
+    #if KISSMALLOC_REDZONE_SIZE > 0
+    if (data == nullptr) return;
+    #endif
     KISSMALLOC_NAME(free)((void *)((char *)data - KISSMALLOC_REDZONE_SIZE));
     VALGRIND_FREELIKE_BLOCK(data, KISSMALLOC_REDZONE_SIZE);
     #endif
